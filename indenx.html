@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vazifalar</title>
+<style>
+:root{
+  --bg:#eef1ec; --surface:#fbfcfa; --ink:#1d2a24; --muted:#6b7a72;
+  --line:#d5dcd5; --accent:#2f6b57; --accent-ink:#fff; --danger:#a8432f;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#141b17; --surface:#1c2621; --ink:#e6ede8; --muted:#8fa096;
+    --line:#2c3932; --accent:#6bbf9f; --accent-ink:#0f1a15; --danger:#e08a76;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:Georgia,"Iowan Old Style","Times New Roman",serif;line-height:1.5;
+  padding:env(safe-area-inset-top,0) 16px 40px}
+main{max-width:560px;margin:0 auto;padding-top:40px}
+h1{font-size:2.2rem;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 24px;font-size:.95rem}
+form{display:flex;gap:8px;margin-bottom:16px}
+input[type=text]{flex:1;min-width:0;font:inherit;padding:12px 14px;border:1px solid var(--line);
+  border-radius:8px;background:var(--surface);color:var(--ink)}
+button{font:inherit;cursor:pointer;border-radius:8px}
+.add{background:var(--accent);color:var(--accent-ink);border:0;padding:0 18px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{background:none;border:1px solid var(--line);color:var(--muted);padding:5px 12px;font-size:.9rem}
+.tab[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+ul{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+li{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+li:last-child{border-bottom:0}
+li input{width:20px;height:20px;accent-color:var(--accent);flex:none;cursor:pointer}
+li span{flex:1;word-break:break-word}
+li.done span{color:var(--muted);text-decoration:line-through}
+.del{background:none;border:0;color:var(--muted);font-size:1.3rem;padding:0 6px;line-height:1}
+.del:hover{color:var(--danger)}
+.empty{padding:28px 14px;text-align:center;color:var(--muted)}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:var(--muted);font-size:.9rem}
+.clear{background:none;border:0;color:var(--muted);text-decoration:underline;padding:0}
+.clear:hover{color:var(--danger)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Vazifalar</h1>
+  <p class="sub" id="count"></p>
+  <form id="form">
+    <input type="text" id="text" placeholder="Yangi vazifa yozing" aria-label="Yangi vazifa" autocomplete="off">
+    <button class="add" type="submit">Qo‘shish</button>
+  </form>
+  <div class="tabs" id="tabs">
+    <button class="tab" data-f="all" aria-pressed="true">Hammasi</button>
+    <button class="tab" data-f="active" aria-pressed="false">Qilinadigan</button>
+    <button class="tab" data-f="done" aria-pressed="false">Bajarilgan</button>
+  </div>
+  <ul id="list"></ul>
+  <div class="foot"><span></span><button class="clear" id="clear">Bajarilganlarni o‘chirish</button></div>
+</main>
+<script>
+const KEY = "todo-items";
+let items = [], filter = "all";
+try { items = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) {}
+const $ = id => document.getElementById(id);
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (e) {} }
+function render(){
+  const shown = items.filter(t => filter==="all" || (filter==="done") === t.done);
+  const list = $("list");
+  list.innerHTML = "";
+  if(!shown.length){
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = items.length ? "Bu bo‘limda vazifa yo‘q." : "Hali vazifa yo‘q. Yuqoriga birinchisini yozing.";
+    list.appendChild(li);
+  }
+  shown.forEach(t => {
+    const li = document.createElement("li");
+    if(t.done) li.className = "done";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = t.done;
+    cb.setAttribute("aria-label", "Bajarildi deb belgilash");
+    cb.onchange = () => { t.done = cb.checked; save(); render(); };
+    const sp = document.createElement("span"); sp.textContent = t.text;
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label","O‘chirish");
+    del.onclick = () => { items = items.filter(x => x !== t); save(); render(); };
+    li.append(cb, sp, del);
+    list.appendChild(li);
+  });
+  const left = items.filter(t => !t.done).length;
+  $("count").textContent = items.length ? `${left} ta vazifa qoldi, jami ${items.length} ta` : "Kunlik ishlaringiz shu yerda.";
+  $("clear").style.display = items.some(t => t.done) ? "" : "none";
+}
+$("form").onsubmit = e => {
+  e.preventDefault();
+  const v = $("text").value.trim();
+  if(!v) return;
+  items.unshift({text:v, done:false});
+  $("text").value = ""; save(); render();
+};
+$("tabs").onclick = e => {
+  const b = e.target.closest(".tab"); if(!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-pressed", x === b));
+  render();
+};
+$("clear").onclick = () => { items = items.filter(t => !t.done); save(); render(); };
+render();
+</script>
+</body>
+</html>
